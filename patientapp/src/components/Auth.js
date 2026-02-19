@@ -1,5 +1,5 @@
 import { auth, provider } from '../firebase-config';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithRedirect } from 'firebase/auth';
 
 import Cookies from 'universal-cookie';
 const cookies = new Cookies();
@@ -9,7 +9,7 @@ export const Auth = (props) => {
 
     const signInWithGoogle = async () => {
         try {
-            const result = await signInWithPopup(auth, provider);
+            const result = await signInWithRedirect(auth, provider);
             cookies.set('auth-token', result.user.refreshToken);
             setIsAuth(true);
         } catch (err) {
