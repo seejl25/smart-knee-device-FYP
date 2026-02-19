@@ -1,0 +1,70 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This operation is for seeding data and should only be run by authenticated users.") {
+  user_insertMany(data: [
+    {
+      id: "user1-patientapp-seed",
+      username: "AliceSmith",
+      email: "alice.smith@example.com",
+      createdAt: "2024-01-01T10:00:00Z"
+    },
+    {
+      id: "user2-patientapp-seed",
+      username: "BobJohnson",
+      email: "bob.johnson@example.com",
+      createdAt: "2024-01-01T10:05:00Z"
+    }
+  ])
+  patient_insertMany(data: [
+    {
+      id: "patient1-patientapp-seed",
+      userId: "user1-patientapp-seed",
+      name: "Patient One",
+      dob: "1990-05-15",
+      gender: "FEMALE"
+    },
+    {
+      id: "patient2-patientapp-seed",
+      userId: "user2-patientapp-seed",
+      name: "Patient Two",
+      dob: "1985-11-20",
+      gender: "MALE"
+    }
+  ])
+  appointment_insertMany(data: [
+    {
+      id: "appt1-patientapp-seed",
+      patientId: "patient1-patientapp-seed",
+      date: "2024-03-10",
+      time: "14:00",
+      type: "CHECK_UP",
+      notes: "Routine check-up for Patient One."
+    },
+    {
+      id: "appt2-patientapp-seed",
+      patientId: "patient2-patientapp-seed",
+      date: "2024-03-12",
+      time: "10:30",
+      type: "CONSULTATION",
+      notes: "Follow-up consultation for Patient Two."
+    }
+  ])
+  medication_insertMany(data: [
+    {
+      id: "med1-patientapp-seed",
+      patientId: "patient1-patientapp-seed",
+      name: "Paracetamol",
+      dosage: "500mg",
+      frequency: "TWICE_DAILY",
+      startDate: "2024-03-01",
+      endDate: "2024-03-15"
+    },
+    {
+      id: "med2-patientapp-seed",
+      patientId: "patient2-patientapp-seed",
+      name: "Ibuprofen",
+      dosage: "200mg",
+      frequency: "AS_NEEDED",
+      startDate: "2024-03-05",
+      endDate: "2024-03-20"
+    }
+  ])
+}

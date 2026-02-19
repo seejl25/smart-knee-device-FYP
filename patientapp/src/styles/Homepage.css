@@ -1,0 +1,100 @@
+body {
+    margin: 0;
+    height: 100%;
+}
+
+.new-workout-form {
+    display: flex;
+    /* flex-direction: column; */
+    align-items: center;
+}
+
+.type-workout {
+    padding: 10px;
+    /* margin-bottom: 10px; */
+    width: 200px;
+}
+
+.submit-workout {
+    padding: 10px 20px;
+    margin-left: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.sign-out {
+    padding: 5px 10px;
+    margin-left: 10px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.homepage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+}
+
+.homepage h1 {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.workout-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    margin-top: 10px;
+}
+
+.heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.workouts {
+    margin-top: 15px;
+}
+
+.workout-type {
+    font-weight: bold;
+    margin-right: 20px;
+}
+
+.date {
+    color: #555;
+    font-size: 12px;
+}
+
+.doctor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.doctor-name {
+    padding: 10px;
+    /* margin-bottom: 10px; */
+    width: 200px;
+    margin: 20px 0;
+}
+
+.submit-doctor{
+    padding: 10px 20px;
+    margin-left: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
