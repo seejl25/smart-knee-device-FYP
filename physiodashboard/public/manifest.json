@@ -1,9 +1,0 @@
-{
-  "short_name": "Physio",
-  "name": "Physio Dashboard",
-  "icons": [],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#163041",
-  "background_color": "#f4efe4"
-}
