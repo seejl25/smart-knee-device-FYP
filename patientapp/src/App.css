@@ -1,19 +1,40 @@
-/* .App {
-  text-align: center;
+ .App {
+  min-height: 100vh;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.doctor-card {
+  width: min(520px, calc(100vw - 32px));
+  padding: 32px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #ffffff, #eef6fb);
+  border: 1px solid #d6e5f0;
+  box-shadow: 0 24px 50px rgba(16, 46, 67, 0.14);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.doctor-card h1,
+.doctor-card p {
+  margin-top: 0;
 }
 
-.App-header {
+.doctor-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #587389;
+}
+
+.doctor-copy {
+  color: #49657b;
+  line-height: 1.5;
+}
+
+.doctor-error {
+  color: #c74440;
+  margin: 0 0 16px;
+}
+
+/* .App-header {
   background-color: #282c34;
   min-height: 100vh;
   display: flex;

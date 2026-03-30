@@ -1,17 +1,17 @@
 import { Auth } from './components/Auth';
 import { Homepage } from './components/Homepage';
-
-// import './App.css';
 import { useState, useRef } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase-config';
+import './App.css';
 
 import Cookies from 'universal-cookie';
 const cookies = new Cookies();
 
 function App() {
   const [isAuth, setIsAuth] = useState(cookies.get("auth-token"));
-  const [doctor, setDoctor] = useState(null);
+  const [doctorEmail, setDoctorEmail] = useState(null);
+  const [doctorError, setDoctorError] = useState('');
 
   const doctorInputRef = useRef();
 
@@ -19,8 +19,26 @@ function App() {
     await signOut(auth)
     cookies.remove("auth-token");
     setIsAuth(false);
-    setDoctor(null);
+    setDoctorEmail(null);
   }
+
+  const handleDoctorSubmit = () => {
+    const submittedEmail = doctorInputRef.current?.value?.trim().toLowerCase();
+
+    if (!submittedEmail) {
+      setDoctorError('Enter your physiotherapist email.');
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(submittedEmail)) {
+      setDoctorError('Use a valid email address.');
+      return;
+    }
+
+    setDoctorError('');
+    setDoctorEmail(submittedEmail);
+  };
 
   if (!isAuth) {
     return (
@@ -32,15 +50,29 @@ function App() {
 
   return (
     <div>
-      {doctor ? (
-        <Homepage doctor={doctor} setDoctor={setDoctor}/>
+      {doctorEmail ? (
+        <Homepage doctorEmail={doctorEmail} setDoctorEmail={setDoctorEmail}/>
       ) : (
         <div className='doctor'>
-          <label>Enter Doctor Name</label>
-          <input className='doctor-name' ref={doctorInputRef}/>
-          <div className='buttons'>
-            <button className='submit-doctor' onClick={() => setDoctor(doctorInputRef.current.value)}>Next</button>
-            <button className='sign-out' onClick={signUserOut}>Sign Out</button>
+          <div className="doctor-card">
+            <p className="doctor-eyebrow">Rehab Setup</p>
+            <h1>Connect to your physiotherapist</h1>
+            <p className="doctor-copy">
+              Enter the physiotherapist or clinic email that should be able to review your knee rehabilitation progress.
+            </p>
+            <label htmlFor="doctor-email">Physiotherapist email</label>
+            <input
+              id="doctor-email"
+              className='doctor-name'
+              ref={doctorInputRef}
+              placeholder="physio@hospital.com"
+              type="email"
+            />
+            {doctorError ? <p className="doctor-error">{doctorError}</p> : null}
+            <div className='buttons'>
+              <button className='submit-doctor' onClick={handleDoctorSubmit}>Continue</button>
+              <button className='sign-out' onClick={signUserOut}>Sign Out</button>
+            </div>
           </div>
         </div>
       )}

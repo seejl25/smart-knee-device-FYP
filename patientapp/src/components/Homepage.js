@@ -93,11 +93,12 @@ function formatDateTime(value) {
 }
 
 export const Homepage = (props) => {
-    const { doctor, setDoctor } = props;
+    const { doctorEmail, setDoctorEmail } = props;
     const [newWorkout, setNewWorkout] = useState('');
     const [selectedWorkout, setSelectedWorkout] = useState('');
     const [workoutList, setWorkoutList] = useState([]);
     const [sessionList, setSessionList] = useState([]);
+    const [feedbackList, setFeedbackList] = useState([]);
     const [thighData, setThighData] = useState([]);
     const [shankData, setShankData] = useState([]);
     const [kneeAngle, setKneeAngle] = useState(null);
@@ -113,6 +114,7 @@ export const Homepage = (props) => {
 
     const workoutsRef = collection(db, 'Workout');
     const exerciseSessionsRef = collection(db, 'ExerciseSessions');
+    const physioFeedbackRef = collection(db, 'PhysioFeedback');
     const repTrackerRef = useRef({
         inProgress: false,
         peakAngle: 0,
@@ -167,6 +169,31 @@ export const Homepage = (props) => {
 
         return () => unsubscribe();
     }, [exerciseSessionsRef]);
+
+    useEffect(() => {
+        if (!auth.currentUser?.email) {
+            return undefined;
+        }
+
+        const feedbackQuery = firestoreQuery(
+            physioFeedbackRef,
+            where('patientEmail', '==', auth.currentUser.email)
+        );
+
+        const unsubscribe = onSnapshot(feedbackQuery, (snapshot) => {
+            const feedbackEntries = snapshot.docs
+                .map((doc) => ({ ...doc.data(), id: doc.id }))
+                .sort((a, b) => {
+                    const aTime = a.createdAt?.seconds || 0;
+                    const bTime = b.createdAt?.seconds || 0;
+                    return bTime - aTime;
+                });
+
+            setFeedbackList(feedbackEntries);
+        });
+
+        return () => unsubscribe();
+    }, [physioFeedbackRef]);
 
     useEffect(() => {
         const thighQuery = realtimeQuery(ref(rtdb, 'sensors/thigh'), limitToLast(SENSOR_SAMPLE_LIMIT));
@@ -271,7 +298,11 @@ export const Homepage = (props) => {
             workout: workoutName,
             createdAt: serverTimestamp(),
             user: auth.currentUser.displayName,
-            doctor
+            userEmail: auth.currentUser.email || '',
+            patientEmail: auth.currentUser.email || '',
+            patientName: auth.currentUser.displayName || '',
+            doctor: doctorEmail,
+            doctorEmail
         });
 
         setSelectedWorkout(workoutName);
@@ -312,7 +343,11 @@ export const Homepage = (props) => {
         const sessionSummary = {
             workout: selectedWorkout,
             user: auth.currentUser.displayName,
-            doctor,
+            userEmail: auth.currentUser.email || '',
+            patientEmail: auth.currentUser.email || '',
+            patientName: auth.currentUser.displayName || '',
+            doctor: doctorEmail,
+            doctorEmail,
             repCount: repTrackerRef.current.completedReps.length,
             reps: repTrackerRef.current.completedReps,
             startedAt: sessionStartedAt,
@@ -339,7 +374,17 @@ export const Homepage = (props) => {
             <div className="header">
                 <div className="heading">
                     <h1>{auth.currentUser.displayName}</h1>
-                    <button className="back-button" onClick={() => setDoctor(null)}>Back</button>
+                    <button className="back-button" onClick={() => setDoctorEmail(null)}>Back</button>
+                </div>
+                <div className="patient-meta">
+                    <div className="meta-pill">
+                        <span className="panel-label">Signed in as</span>
+                        <span>{auth.currentUser.email}</span>
+                    </div>
+                    <div className="meta-pill">
+                        <span className="panel-label">Assigned physio</span>
+                        <span>{doctorEmail}</span>
+                    </div>
                 </div>
                 <div className="add-workout">
                     <form onSubmit={handleSubmit} className="new-workout-form">
@@ -474,6 +519,30 @@ export const Homepage = (props) => {
                     </div>
                 ) : (
                     <p className="empty-state">Stop an exercise to save and display its summary.</p>
+                )}
+            </div>
+
+            <div className="content-card session-history">
+                <h2>Physiotherapist Feedback</h2>
+                {feedbackList.length === 0 ? (
+                    <p className="empty-state">No physio comments yet. Feedback written in the physiotherapist dashboard will appear here.</p>
+                ) : (
+                    <div className="feedback-list">
+                        {feedbackList.map((feedback) => (
+                            <div key={feedback.id} className="feedback-card">
+                                <div className="session-card__header">
+                                    <span className="workout-type">{feedback.doctorName || feedback.doctorEmail || 'Physiotherapist'}</span>
+                                    <span className="date">{formatDateTime(feedback.createdAt)}</span>
+                                </div>
+                                {feedback.exerciseName ? (
+                                    <p className="feedback-focus">
+                                        Exercise focus: {feedback.exerciseName}
+                                    </p>
+                                ) : null}
+                                <p className="feedback-message">{feedback.message}</p>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
 
