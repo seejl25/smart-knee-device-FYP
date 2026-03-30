@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+build/
+**/build/
+coverage/
+**/coverage/
+
+# Environment and secret files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Firebase and app config files that may contain API keys
+firebase-config.js
+**/firebase-config.js
+.runtimeconfig.json
+firebase-debug.log*
+**/firebase-debug.log*
+
+# Service account and credential files
+serviceAccount*.json
+*credentials*.json
+*.pem
+*.key
+*.p12
+*.crt
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
