@@ -267,6 +267,54 @@ body {
     border: 1px solid #d8e6f2;
 }
 
+.session-date-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.session-date-group,
+.session-card {
+    overflow: hidden;
+}
+
+.session-date-summary,
+.session-card__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.session-date-summary::-webkit-details-marker,
+.session-card__summary::-webkit-details-marker {
+    display: none;
+}
+
+.session-date-summary {
+    padding: 16px 18px;
+    background: #edf6fb;
+    border: 1px solid #d6e8f4;
+    border-radius: 16px;
+    font-weight: 700;
+}
+
+.session-card__summary {
+    padding: 2px 0;
+}
+
+.session-card__summary > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.session-card__body {
+    margin-top: 14px;
+}
+
 .feedback-card {
     padding: 16px;
     border-radius: 16px;

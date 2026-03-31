@@ -170,6 +170,19 @@ function buildSessionFeed(patientSessions) {
   );
 }
 
+function formatTimeOnly(value) {
+  const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown time';
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
 function SimpleLineChart({ data }) {
   if (!data.length) {
     return (
@@ -413,7 +426,7 @@ function App() {
           <div className="hero-badges">
             <span className="badge">Monitoring: ACL / knee surgery pathway</span>
             <span className={`badge ${usingDemoData ? 'badge-warn' : ''}`}>
-              {usingDemoData ? 'Demo preview data' : 'Live doctorEmail data'}
+              {usingDemoData ? 'Demo preview data' : 'Live patient data'}
             </span>
           </div>
         </section>
@@ -477,13 +490,32 @@ function App() {
             ) : (
               <div className="session-feed">
                 {sessionFeed.slice(0, 6).map((session) => (
-                  <div className="session-row" key={session.id}>
-                    <div>
-                      <strong>{session.workout}</strong>
-                      <p>{formatDate(session.endedAt || session.createdAt)}</p>
+                  <details className="session-row session-row--expandable" key={session.id}>
+                    <summary className="session-row__summary">
+                      <div>
+                        <strong>{session.workout}</strong>
+                        <p>{formatTimeOnly(session.endedAt || session.createdAt)}</p>
+                      </div>
+                      <span>{session.repCount} reps</span>
+                    </summary>
+                    <div className="session-row__body">
+                      <p className="session-row__timestamp">
+                        {formatDate(session.endedAt || session.createdAt)}
+                      </p>
+                      {(session.reps || []).length === 0 ? (
+                        <p className="supporting-copy">No rep angles were saved for this session.</p>
+                      ) : (
+                        <div className="session-rep-list">
+                          {(session.reps || []).map((rep) => (
+                            <div className="session-rep-row" key={`${session.id}-${rep.repNumber}`}>
+                              <span>Rep {rep.repNumber}</span>
+                              <span>{Number(rep.peakAngle).toFixed(2)}°</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span>{session.repCount} reps</span>
-                  </div>
+                  </details>
                 ))}
               </div>
             )}

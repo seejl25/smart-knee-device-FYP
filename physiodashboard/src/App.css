@@ -269,12 +269,27 @@ select {
 
 .session-row {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
   padding: 14px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(17, 42, 57, 0.08);
+}
+
+.session-row--expandable {
+  display: block;
+}
+
+.session-row__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.session-row__summary::-webkit-details-marker {
+  display: none;
 }
 
 .session-row strong {
@@ -284,6 +299,31 @@ select {
 
 .session-row p {
   margin: 0;
+}
+
+.session-row__body {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(17, 42, 57, 0.08);
+}
+
+.session-row__timestamp {
+  margin-bottom: 12px;
+}
+
+.session-rep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-rep-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(244, 239, 228, 0.65);
 }
 
 .feedback-box {

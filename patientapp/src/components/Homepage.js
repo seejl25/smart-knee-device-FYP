@@ -92,6 +92,60 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
+function toDateObject(value) {
+    if (!value) {
+        return null;
+    }
+
+    const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatSessionDate(value) {
+    const date = toDateObject(value);
+
+    if (!date) {
+        return 'Unknown date';
+    }
+
+    return date.toLocaleDateString([], {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+}
+
+function formatSessionTime(value) {
+    const date = toDateObject(value);
+
+    if (!date) {
+        return 'Unknown time';
+    }
+
+    return date.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+}
+
+function groupSessionsByDate(sessionList) {
+    const groupedSessions = new Map();
+
+    sessionList.forEach((session) => {
+        const sessionDate = session.endedAt || session.createdAt;
+        const groupKey = formatSessionDate(sessionDate);
+        const existingSessions = groupedSessions.get(groupKey) || [];
+
+        groupedSessions.set(groupKey, [...existingSessions, session]);
+    });
+
+    return Array.from(groupedSessions.entries()).map(([dateLabel, sessions]) => ({
+        dateLabel,
+        sessions
+    }));
+}
+
 export const Homepage = (props) => {
     const { doctorEmail, setDoctorEmail } = props;
     const [newWorkout, setNewWorkout] = useState('');
@@ -121,6 +175,7 @@ export const Homepage = (props) => {
         completedReps: [],
         lastProcessedTimestamp: null
     });
+    const groupedSessionList = groupSessionsByDate(sessionList);
 
     useEffect(() => {
         const workoutsQuery = firestoreQuery(
@@ -551,23 +606,42 @@ export const Homepage = (props) => {
                 {sessionList.length === 0 ? (
                     <p className="empty-state">No saved sessions yet.</p>
                 ) : (
-                    <div className="session-list">
-                        {sessionList.map((session) => (
-                            <div key={session.id} className="session-card">
-                                <div className="session-card__header">
-                                    <span className="workout-type">{session.workout}</span>
-                                    <span className="date">{formatDateTime(session.createdAt)}</span>
-                                </div>
-                                <p>Total reps: {session.repCount}</p>
-                                <div className="rep-list">
-                                    {(session.reps || []).map((rep) => (
-                                        <div key={`${session.id}-${rep.repNumber}`} className="rep-row">
-                                            <span>Rep {rep.repNumber}</span>
-                                            <span>{Number(rep.peakAngle).toFixed(2)}°</span>
-                                        </div>
+                    <div className="session-date-groups">
+                        {groupedSessionList.map((group) => (
+                            <details key={group.dateLabel} className="session-date-group" open>
+                                <summary className="session-date-summary">
+                                    <span>{group.dateLabel}</span>
+                                    <span>{group.sessions.length} sessions</span>
+                                </summary>
+                                <div className="session-list">
+                                    {group.sessions.map((session) => (
+                                        <details key={session.id} className="session-card">
+                                            <summary className="session-card__summary">
+                                                <div>
+                                                    <span className="workout-type">{session.workout}</span>
+                                                    <span className="date">{formatSessionTime(session.endedAt || session.createdAt)}</span>
+                                                </div>
+                                                <span>{session.repCount} reps</span>
+                                            </summary>
+                                            <div className="session-card__body">
+                                                <div className="session-card__header">
+                                                    <span className="workout-type">{session.workout}</span>
+                                                    <span className="date">{formatDateTime(session.createdAt)}</span>
+                                                </div>
+                                                <p>Total reps: {session.repCount}</p>
+                                                <div className="rep-list">
+                                                    {(session.reps || []).map((rep) => (
+                                                        <div key={`${session.id}-${rep.repNumber}`} className="rep-row">
+                                                            <span>Rep {rep.repNumber}</span>
+                                                            <span>{Number(rep.peakAngle).toFixed(2)}°</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </details>
                                     ))}
                                 </div>
-                            </div>
+                            </details>
                         ))}
                     </div>
                 )}
