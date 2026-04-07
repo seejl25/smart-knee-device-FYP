@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "patientapp-1c5d4"
+  },
+  "targets": {
+    "patientapp-1c5d4": {
+      "hosting": {
+        "b-site": [
+          "dashboard-6f40c"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
