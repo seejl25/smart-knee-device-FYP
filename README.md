@@ -40,8 +40,8 @@ Key features:
 
 Main areas:
 
-- [patientapp/src/App.js](/Users/seejunlong/repos/fypv2/patientapp/src/App.js)
-- [patientapp/src/components/Homepage.js](/Users/seejunlong/repos/fypv2/patientapp/src/components/Homepage.js)
+- [patientapp/src/App.js](patientapp/src/App.js)
+- [patientapp/src/components/Homepage.js](patientapp/src/components/Homepage.js)
 
 ### `physiodashboard`
 
@@ -60,8 +60,8 @@ Key features:
 
 Main areas:
 
-- [physiodashboard/src/App.js](/Users/seejunlong/repos/fypv2/physiodashboard/src/App.js)
-- [physiodashboard/src/App.css](/Users/seejunlong/repos/fypv2/physiodashboard/src/App.css)
+- [physiodashboard/src/App.js](physiodashboard/src/App.js)
+- [physiodashboard/src/App.css](physiodashboard/src/App.css)
 
 ## Tech Stack
 
