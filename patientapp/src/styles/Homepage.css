@@ -209,6 +209,16 @@ body {
     justify-content: space-between;
 }
 
+.live-angle-card--success {
+    background: linear-gradient(145deg, #e7f7ef, #d6f0e2);
+    border-color: #8ec9a9;
+}
+
+.live-angle-card--warning {
+    background: linear-gradient(145deg, #fff0ef, #ffe2df);
+    border-color: #e59b95;
+}
+
 .workout-list,
 .rep-list,
 .session-list,

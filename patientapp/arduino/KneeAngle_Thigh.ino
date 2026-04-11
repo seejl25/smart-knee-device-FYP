@@ -9,8 +9,10 @@
 #define MPU_ADDR 0x68
 
 // Firebase URL
-// change thigh/shank depending on device
-String firebaseURL = "https://patientapp-1c5d4-default-rtdb.asia-southeast1.firebasedatabase.app/sensors/thigh.json";
+// Keep PATIENT_KEY identical on both sensor devices for the same patient.
+String firebaseBaseURL = "https://patientapp-1c5d4-default-rtdb.asia-southeast1.firebasedatabase.app";
+String patientKey = "patient_example_com";
+String firebasePath = "/liveSensors/" + patientKey + "/thigh/latest.json";
 
 // Raw MPU data
 int16_t AccX, AccY, AccZ;
@@ -111,10 +113,14 @@ void computeAngle() {
 void sendToFirebase() {
 
   if (WiFi.status() == WL_CONNECTED) {
+    if (isnan(fusedAngle) || isinf(fusedAngle)) {
+      Serial.println("Skipping invalid angle payload");
+      return;
+    }
 
     HTTPClient http;
 
-    http.begin(firebaseURL);
+    http.begin(firebaseBaseURL + firebasePath);
     http.addHeader("Content-Type", "application/json");
 
     String json = "{";
@@ -123,11 +129,15 @@ void sendToFirebase() {
     json += "\"timestampMs\":" + String(getTimestampMillis());
     json += "}";
 
-    int httpResponseCode = http.POST(json);
-    // int httpResponseCode = http.PUT(String(fusedAngle));
+    Serial.print("Sending JSON: ");
+    Serial.println(json);
+
+    int httpResponseCode = http.PUT(json);
 
     Serial.print("HTTP Response: ");
     Serial.println(httpResponseCode);
+    Serial.print("Firebase response body: ");
+    Serial.println(http.getString());
 
     http.end();
   }

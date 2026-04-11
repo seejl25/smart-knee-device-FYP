@@ -8,20 +8,22 @@ import {
     where
 } from 'firebase/firestore';
 import {
-    limitToLast,
     onValue,
-    query as realtimeQuery,
     ref
 } from 'firebase/database';
 import { auth, db, rtdb } from '../firebase-config';
 import '../styles/Homepage.css';
 
 const SENSOR_SAMPLE_LIMIT = 60;
-const REP_START_ANGLE = 35;
-const REP_END_ANGLE = 20;
+const START_ANGLE_MIN = 20;
+const START_ANGLE_MAX = 70;
 const MAX_SENSOR_MATCH_GAP_MS = 1000;
 
 function parseTimestamp(entry) {
+    if (!entry || typeof entry !== 'object') {
+        return 0;
+    }
+
     if (typeof entry.timestampMs === 'number' && Number.isFinite(entry.timestampMs)) {
         return entry.timestampMs;
     }
@@ -45,6 +47,10 @@ function normalizeSensorData(data) {
 
     return Object.entries(data)
         .map(([id, value]) => {
+            if (!value || typeof value !== 'object') {
+                return null;
+            }
+
             const timestampMs = parseTimestamp(value);
 
             return {
@@ -54,8 +60,78 @@ function normalizeSensorData(data) {
                 timestampMs
             };
         })
+        .filter(Boolean)
         .filter((entry) => entry.timestampMs > 0)
         .sort((a, b) => a.timestampMs - b.timestampMs);
+}
+
+function toPatientKey(email) {
+    if (typeof email !== 'string' || email.trim() === '') {
+        return 'default-patient';
+    }
+
+    return email.trim().toLowerCase().replace(/[@.#$/[\]]/g, '_');
+}
+
+function appendLatestSample(currentSamples, latestEntry) {
+    if (!latestEntry || latestEntry.timestampMs <= 0) {
+        return currentSamples;
+    }
+
+    const lastSample = currentSamples[currentSamples.length - 1];
+
+    if (lastSample?.timestampMs === latestEntry.timestampMs) {
+        return currentSamples;
+    }
+
+    const nextSamples = [...currentSamples, latestEntry];
+    return nextSamples.slice(-SENSOR_SAMPLE_LIMIT);
+}
+
+function normalizeExerciseName(value) {
+    return (value || '').trim().toLowerCase();
+}
+
+function getExerciseMode(exerciseName) {
+    const normalizedName = normalizeExerciseName(exerciseName);
+
+    if (normalizedName === 'leg extension') {
+        return 'extension';
+    }
+
+    if (normalizedName === 'leg flexion') {
+        return 'flexion';
+    }
+
+    return null;
+}
+
+function isWithinStartRange(angle) {
+    return angle >= START_ANGLE_MIN && angle <= START_ANGLE_MAX;
+}
+
+function getRepFeedback(mode, achievedAngle) {
+    if (mode === 'extension') {
+        if (achievedAngle >= 0 && achievedAngle <= 10) {
+            return 'success';
+        }
+
+        if (achievedAngle > 10 && achievedAngle < START_ANGLE_MIN) {
+            return 'warning';
+        }
+    }
+
+    if (mode === 'flexion') {
+        if (achievedAngle >= 80) {
+            return 'success';
+        }
+
+        if (achievedAngle > START_ANGLE_MAX && achievedAngle < 80) {
+            return 'warning';
+        }
+    }
+
+    return 'idle';
 }
 
 function findClosestMatch(thighEntry, shankData) {
@@ -165,13 +241,16 @@ export const Homepage = (props) => {
     const [latestSessionSummary, setLatestSessionSummary] = useState(null);
     const [sessionStartedAt, setSessionStartedAt] = useState(null);
     const [isSavingSession, setIsSavingSession] = useState(false);
+    const [liveAngleFeedback, setLiveAngleFeedback] = useState('idle');
+    const patientEmail = auth.currentUser?.email || '';
 
     const workoutsRef = collection(db, 'Workout');
     const exerciseSessionsRef = collection(db, 'ExerciseSessions');
     const physioFeedbackRef = collection(db, 'PhysioFeedback');
     const repTrackerRef = useRef({
         inProgress: false,
-        peakAngle: 0,
+        targetAngle: null,
+        movedOutOfStartRange: false,
         completedReps: [],
         lastProcessedTimestamp: null
     });
@@ -251,22 +330,42 @@ export const Homepage = (props) => {
     }, [physioFeedbackRef]);
 
     useEffect(() => {
-        const thighQuery = realtimeQuery(ref(rtdb, 'sensors/thigh'), limitToLast(SENSOR_SAMPLE_LIMIT));
-        const shankQuery = realtimeQuery(ref(rtdb, 'sensors/shank'), limitToLast(SENSOR_SAMPLE_LIMIT));
+        if (!patientEmail) {
+            return undefined;
+        }
 
-        const unsubscribeThigh = onValue(thighQuery, (snapshot) => {
-            setThighData(normalizeSensorData(snapshot.val()));
+        const patientKey = toPatientKey(patientEmail);
+        // const thighLatestRef = ref(rtdb, `liveSensors/${patientKey}/thigh/latest`);
+        // const shankLatestRef = ref(rtdb, `liveSensors/${patientKey}/shank/latest`);
+
+        const thighLatestRef = ref(rtdb, `liveSensors/patient_example_com/thigh/latest`);
+        const shankLatestRef = ref(rtdb, `liveSensors/patient_example_com/shank/latest`);
+
+        const unsubscribeThigh = onValue(thighLatestRef, (snapshot) => {
+            const latestEntries = normalizeSensorData({ latest: snapshot.val() });
+
+            if (latestEntries.length === 0) {
+                return;
+            }
+
+            setThighData((currentSamples) => appendLatestSample(currentSamples, latestEntries[0]));
         });
 
-        const unsubscribeShank = onValue(shankQuery, (snapshot) => {
-            setShankData(normalizeSensorData(snapshot.val()));
+        const unsubscribeShank = onValue(shankLatestRef, (snapshot) => {
+            const latestEntries = normalizeSensorData({ latest: snapshot.val() });
+
+            if (latestEntries.length === 0) {
+                return;
+            }
+
+            setShankData((currentSamples) => appendLatestSample(currentSamples, latestEntries[0]));
         });
 
         return () => {
             unsubscribeThigh();
             unsubscribeShank();
         };
-    }, []);
+    }, [patientEmail]);
 
     useEffect(() => {
         if (thighData.length === 0 || shankData.length === 0) {
@@ -303,10 +402,23 @@ export const Homepage = (props) => {
         repTrackerRef.current.lastProcessedTimestamp = latestSample.timestampMs;
 
         const liveAngle = latestSample.angle;
+        const exerciseMode = getExerciseMode(selectedWorkout);
 
-        if (!repTrackerRef.current.inProgress && liveAngle >= REP_START_ANGLE) {
+        if (!exerciseMode) {
+            setCurrentRepNumber(repTrackerRef.current.completedReps.length + 1);
+            setCurrentRepAngle(null);
+            setLiveAngleFeedback('idle');
+            return;
+        }
+
+        if (!repTrackerRef.current.inProgress && isWithinStartRange(liveAngle)) {
             repTrackerRef.current.inProgress = true;
-            repTrackerRef.current.peakAngle = liveAngle;
+            repTrackerRef.current.targetAngle = liveAngle;
+            repTrackerRef.current.movedOutOfStartRange = false;
+            setCurrentRepNumber(repTrackerRef.current.completedReps.length + 1);
+            setCurrentRepAngle(liveAngle);
+            setLiveAngleFeedback('idle');
+            return;
         }
 
         if (!repTrackerRef.current.inProgress) {
@@ -315,14 +427,36 @@ export const Homepage = (props) => {
             return;
         }
 
-        repTrackerRef.current.peakAngle = Math.max(repTrackerRef.current.peakAngle, liveAngle);
-        setCurrentRepNumber(repTrackerRef.current.completedReps.length + 1);
-        setCurrentRepAngle(repTrackerRef.current.peakAngle);
+        if (exerciseMode === 'extension') {
+            repTrackerRef.current.targetAngle = repTrackerRef.current.targetAngle === null
+                ? liveAngle
+                : Math.min(repTrackerRef.current.targetAngle, liveAngle);
 
-        if (liveAngle <= REP_END_ANGLE) {
+            if (liveAngle < START_ANGLE_MIN) {
+                repTrackerRef.current.movedOutOfStartRange = true;
+            }
+        }
+
+        if (exerciseMode === 'flexion') {
+            repTrackerRef.current.targetAngle = repTrackerRef.current.targetAngle === null
+                ? liveAngle
+                : Math.max(repTrackerRef.current.targetAngle, liveAngle);
+
+            if (liveAngle > START_ANGLE_MAX) {
+                repTrackerRef.current.movedOutOfStartRange = true;
+            }
+        }
+
+        setCurrentRepNumber(repTrackerRef.current.completedReps.length + 1);
+        setCurrentRepAngle(repTrackerRef.current.targetAngle);
+
+        if (repTrackerRef.current.movedOutOfStartRange && isWithinStartRange(liveAngle)) {
+            const achievedAngle = Number((repTrackerRef.current.targetAngle ?? liveAngle).toFixed(2));
+            const feedback = getRepFeedback(exerciseMode, achievedAngle);
             const completedRep = {
                 repNumber: repTrackerRef.current.completedReps.length + 1,
-                peakAngle: Number(repTrackerRef.current.peakAngle.toFixed(2)),
+                peakAngle: achievedAngle,
+                feedback,
                 completedAt: new Date(latestSample.timestampMs).toISOString()
             };
 
@@ -331,14 +465,16 @@ export const Homepage = (props) => {
                 completedRep
             ];
             repTrackerRef.current.inProgress = false;
-            repTrackerRef.current.peakAngle = 0;
+            repTrackerRef.current.targetAngle = null;
+            repTrackerRef.current.movedOutOfStartRange = false;
 
             setRepSummaries(repTrackerRef.current.completedReps);
             setRepCount(repTrackerRef.current.completedReps.length);
             setCurrentRepNumber(repTrackerRef.current.completedReps.length + 1);
             setCurrentRepAngle(null);
+            setLiveAngleFeedback(feedback);
         }
-    }, [isExerciseActive, latestSample]);
+    }, [isExerciseActive, latestSample, selectedWorkout]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -373,7 +509,8 @@ export const Homepage = (props) => {
 
         repTrackerRef.current = {
             inProgress: false,
-            peakAngle: 0,
+            targetAngle: null,
+            movedOutOfStartRange: false,
             completedReps: [],
             lastProcessedTimestamp: null
         };
@@ -386,6 +523,7 @@ export const Homepage = (props) => {
         setCurrentRepAngle(null);
         setLatestSessionSummary(null);
         setSessionStartedAt(new Date().toISOString());
+        setLiveAngleFeedback('idle');
     };
 
     const handleStopExercise = async () => {
@@ -394,6 +532,7 @@ export const Homepage = (props) => {
         }
 
         setIsExerciseActive(false);
+        setLiveAngleFeedback('idle');
 
         const sessionSummary = {
             workout: selectedWorkout,
@@ -484,7 +623,7 @@ export const Homepage = (props) => {
             </div>
 
             <div className="stats-grid">
-                <div className="stat-card">
+                <div className={`stat-card live-angle-card live-angle-card--${liveAngleFeedback}`}>
                     <span className="panel-label">Live Knee Angle</span>
                     <span className="stat-value">
                         {kneeAngle !== null ? `${kneeAngle.toFixed(2)}°` : 'Waiting for sensor data'}
@@ -499,7 +638,7 @@ export const Homepage = (props) => {
                     <span className="stat-value">{isExerciseActive ? currentRepNumber : '-'}</span>
                 </div>
                 <div className="stat-card">
-                    <span className="panel-label">Current Rep Peak Angle</span>
+                    <span className="panel-label">Current Rep Best Angle</span>
                     <span className="stat-value">
                         {isExerciseActive && currentRepAngle !== null
                             ? `${currentRepAngle.toFixed(2)}°`

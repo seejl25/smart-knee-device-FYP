@@ -326,6 +326,16 @@ select {
   background: rgba(244, 239, 228, 0.65);
 }
 
+.session-rep-row--success {
+  background: linear-gradient(145deg, #e7f7ef, #d6f0e2);
+  border: 1px solid #8ec9a9;
+}
+
+.session-rep-row--warning {
+  background: linear-gradient(145deg, #fff0ef, #ffe2df);
+  border: 1px solid #e59b95;
+}
+
 .feedback-box {
   width: 100%;
   min-height: 150px;

@@ -25,14 +25,16 @@ const DEMO_PATIENTS = [
   }
 ];
 const DEMO_SERIES = [
-  { date: 'Mar 23', value: 58 },
-  { date: 'Mar 24', value: 61 },
-  { date: 'Mar 25', value: 63 },
-  { date: 'Mar 26', value: 67 },
-  { date: 'Mar 27', value: 69 },
-  { date: 'Mar 28', value: 72 },
-  { date: 'Mar 29', value: 76 }
+  { date: 'Mar 23', sortKey: '2026-03-23', value: 58 },
+  { date: 'Mar 24', sortKey: '2026-03-24', value: 61 },
+  { date: 'Mar 25', sortKey: '2026-03-25', value: 63 },
+  { date: 'Mar 26', sortKey: '2026-03-26', value: 67 },
+  { date: 'Mar 27', sortKey: '2026-03-27', value: 69 },
+  { date: 'Mar 28', sortKey: '2026-03-28', value: 72 },
+  { date: 'Mar 29', sortKey: '2026-03-29', value: 76 }
 ];
+const START_ANGLE_MIN = 20;
+const START_ANGLE_MAX = 70;
 
 function formatDate(value, options) {
   if (!value) {
@@ -67,12 +69,63 @@ function toDayLabel(value) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+function toDaySortKey(value) {
+  const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '9999-12-31';
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 function average(values) {
   if (!values.length) {
     return 0;
   }
 
   return values.reduce((sum, current) => sum + current, 0) / values.length;
+}
+
+function normalizeExerciseName(value) {
+  return (value || '').trim().toLowerCase();
+}
+
+function getExerciseMode(exerciseName) {
+  const normalizedName = normalizeExerciseName(exerciseName);
+
+  if (normalizedName === 'leg extension') {
+    return 'extension';
+  }
+
+  if (normalizedName === 'leg flexion') {
+    return 'flexion';
+  }
+
+  return null;
+}
+
+function getRepFeedback(mode, achievedAngle) {
+  if (mode === 'extension') {
+    if (achievedAngle >= 0 && achievedAngle <= 10) {
+      return 'success';
+    }
+
+    if (achievedAngle > 10 && achievedAngle < START_ANGLE_MIN) {
+      return 'warning';
+    }
+  }
+
+  if (mode === 'flexion') {
+    if (achievedAngle >= 80 && achievedAngle <= 90) {
+      return 'success';
+    }
+
+    if (achievedAngle > START_ANGLE_MAX && achievedAngle < 80) {
+      return 'warning';
+    }
+  }
+
+  return 'idle';
 }
 
 function buildPatients(workouts, sessions) {
@@ -145,7 +198,9 @@ function buildDailyAverages(patientSessions, selectedExercise) {
       return;
     }
 
-    const label = toDayLabel(session.endedAt || session.createdAt);
+    const sourceDate = session.endedAt || session.createdAt;
+    const label = toDayLabel(sourceDate);
+    const sortKey = toDaySortKey(sourceDate);
     const repAngles = (session.reps || [])
       .map((rep) => Number(rep.peakAngle))
       .filter((angle) => Number.isFinite(angle));
@@ -154,14 +209,20 @@ function buildDailyAverages(patientSessions, selectedExercise) {
       return;
     }
 
-    const existing = grouped.get(label) || [];
-    grouped.set(label, [...existing, ...repAngles]);
+    const existing = grouped.get(sortKey) || { date: label, sortKey, values: [] };
+    grouped.set(sortKey, {
+      ...existing,
+      values: [...existing.values, ...repAngles]
+    });
   });
 
-  return Array.from(grouped.entries()).map(([date, values]) => ({
-    date,
-    value: Number(average(values).toFixed(1))
-  }));
+  return Array.from(grouped.values())
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .map((entry) => ({
+      date: entry.date,
+      sortKey: entry.sortKey,
+      value: Number(average(entry.values).toFixed(1))
+    }));
 }
 
 function buildSessionFeed(patientSessions) {
@@ -506,12 +567,22 @@ function App() {
                         <p className="supporting-copy">No rep angles were saved for this session.</p>
                       ) : (
                         <div className="session-rep-list">
-                          {(session.reps || []).map((rep) => (
-                            <div className="session-rep-row" key={`${session.id}-${rep.repNumber}`}>
+                          {(session.reps || []).map((rep) => {
+                            const feedback = rep.feedback || getRepFeedback(
+                              getExerciseMode(session.workout),
+                              Number(rep.peakAngle)
+                            );
+
+                            return (
+                            <div
+                              className={`session-rep-row session-rep-row--${feedback}`}
+                              key={`${session.id}-${rep.repNumber}`}
+                            >
                               <span>Rep {rep.repNumber}</span>
                               <span>{Number(rep.peakAngle).toFixed(2)}°</span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
