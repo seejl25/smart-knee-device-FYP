@@ -11,7 +11,7 @@ import {
     onValue,
     ref
 } from 'firebase/database';
-import { auth, db, rtdb } from '../firebase-config';
+import { db, rtdb } from '../firebase-config';
 import '../styles/Homepage.css';
 
 const SENSOR_SAMPLE_LIMIT = 60;
@@ -122,11 +122,11 @@ function getRepFeedback(mode, achievedAngle) {
     }
 
     if (mode === 'flexion') {
-        if (achievedAngle >= 80) {
+        if (achievedAngle > 90) {
             return 'success';
         }
 
-        if (achievedAngle > START_ANGLE_MAX && achievedAngle < 80) {
+        if (achievedAngle > START_ANGLE_MAX && achievedAngle <= 90) {
             return 'warning';
         }
     }
@@ -223,7 +223,7 @@ function groupSessionsByDate(sessionList) {
 }
 
 export const Homepage = (props) => {
-    const { doctorEmail, setDoctorEmail } = props;
+    const { currentUser, doctorEmail, setDoctorEmail } = props;
     const [newWorkout, setNewWorkout] = useState('');
     const [selectedWorkout, setSelectedWorkout] = useState('');
     const [workoutList, setWorkoutList] = useState([]);
@@ -242,7 +242,8 @@ export const Homepage = (props) => {
     const [sessionStartedAt, setSessionStartedAt] = useState(null);
     const [isSavingSession, setIsSavingSession] = useState(false);
     const [liveAngleFeedback, setLiveAngleFeedback] = useState('idle');
-    const patientEmail = auth.currentUser?.email || '';
+    const patientEmail = currentUser?.email || '';
+    const patientName = currentUser?.displayName || '';
 
     const workoutsRef = collection(db, 'Workout');
     const exerciseSessionsRef = collection(db, 'ExerciseSessions');
@@ -259,7 +260,7 @@ export const Homepage = (props) => {
     useEffect(() => {
         const workoutsQuery = firestoreQuery(
             workoutsRef,
-            where('user', '==', auth.currentUser.displayName)
+            where('user', '==', patientName)
         );
 
         const unsubscribe = onSnapshot(workoutsQuery, (snapshot) => {
@@ -275,7 +276,7 @@ export const Homepage = (props) => {
         });
 
         return () => unsubscribe();
-    }, [workoutsRef]);
+    }, [patientName, workoutsRef]);
 
     useEffect(() => {
         if (!selectedWorkout && workoutList.length > 0) {
@@ -286,7 +287,7 @@ export const Homepage = (props) => {
     useEffect(() => {
         const sessionQuery = firestoreQuery(
             exerciseSessionsRef,
-            where('user', '==', auth.currentUser.displayName)
+            where('user', '==', patientName)
         );
 
         const unsubscribe = onSnapshot(sessionQuery, (snapshot) => {
@@ -302,16 +303,16 @@ export const Homepage = (props) => {
         });
 
         return () => unsubscribe();
-    }, [exerciseSessionsRef]);
+    }, [exerciseSessionsRef, patientName]);
 
     useEffect(() => {
-        if (!auth.currentUser?.email) {
+        if (!patientEmail) {
             return undefined;
         }
 
         const feedbackQuery = firestoreQuery(
             physioFeedbackRef,
-            where('patientEmail', '==', auth.currentUser.email)
+            where('patientEmail', '==', patientEmail)
         );
 
         const unsubscribe = onSnapshot(feedbackQuery, (snapshot) => {
@@ -327,7 +328,7 @@ export const Homepage = (props) => {
         });
 
         return () => unsubscribe();
-    }, [physioFeedbackRef]);
+    }, [patientEmail, physioFeedbackRef]);
 
     useEffect(() => {
         if (!patientEmail) {
@@ -335,11 +336,8 @@ export const Homepage = (props) => {
         }
 
         const patientKey = toPatientKey(patientEmail);
-        // const thighLatestRef = ref(rtdb, `liveSensors/${patientKey}/thigh/latest`);
-        // const shankLatestRef = ref(rtdb, `liveSensors/${patientKey}/shank/latest`);
-
-        const thighLatestRef = ref(rtdb, `liveSensors/patient_example_com/thigh/latest`);
-        const shankLatestRef = ref(rtdb, `liveSensors/patient_example_com/shank/latest`);
+        const thighLatestRef = ref(rtdb, `liveSensors/${patientKey}/thigh/latest`);
+        const shankLatestRef = ref(rtdb, `liveSensors/${patientKey}/shank/latest`);
 
         const unsubscribeThigh = onValue(thighLatestRef, (snapshot) => {
             const latestEntries = normalizeSensorData({ latest: snapshot.val() });
@@ -488,10 +486,10 @@ export const Homepage = (props) => {
         await addDoc(workoutsRef, {
             workout: workoutName,
             createdAt: serverTimestamp(),
-            user: auth.currentUser.displayName,
-            userEmail: auth.currentUser.email || '',
-            patientEmail: auth.currentUser.email || '',
-            patientName: auth.currentUser.displayName || '',
+            user: patientName,
+            userEmail: patientEmail,
+            patientEmail,
+            patientName,
             doctor: doctorEmail,
             doctorEmail
         });
@@ -536,10 +534,10 @@ export const Homepage = (props) => {
 
         const sessionSummary = {
             workout: selectedWorkout,
-            user: auth.currentUser.displayName,
-            userEmail: auth.currentUser.email || '',
-            patientEmail: auth.currentUser.email || '',
-            patientName: auth.currentUser.displayName || '',
+            user: patientName,
+            userEmail: patientEmail,
+            patientEmail,
+            patientName,
             doctor: doctorEmail,
             doctorEmail,
             repCount: repTrackerRef.current.completedReps.length,
@@ -567,13 +565,13 @@ export const Homepage = (props) => {
         <div className="homepage">
             <div className="header">
                 <div className="heading">
-                    <h1>{auth.currentUser.displayName}</h1>
+                    <h1>{patientName}</h1>
                     <button className="back-button" onClick={() => setDoctorEmail(null)}>Back</button>
                 </div>
                 <div className="patient-meta">
                     <div className="meta-pill">
                         <span className="panel-label">Signed in as</span>
-                        <span>{auth.currentUser.email}</span>
+                        <span>{patientEmail}</span>
                     </div>
                     <div className="meta-pill">
                         <span className="panel-label">Assigned physio</span>
@@ -672,7 +670,10 @@ export const Homepage = (props) => {
                     ) : (
                         <div className="rep-list">
                             {repSummaries.map((rep) => (
-                                <div key={rep.repNumber} className="rep-row">
+                                <div
+                                    key={rep.repNumber}
+                                    className={`rep-row rep-row--${rep.feedback || 'idle'}`}
+                                >
                                     <span>Rep {rep.repNumber}</span>
                                     <span>{rep.peakAngle.toFixed(2)}°</span>
                                 </div>
@@ -703,7 +704,10 @@ export const Homepage = (props) => {
                                 <p className="empty-state">No completed reps were recorded for this session.</p>
                             ) : (
                                 latestSessionSummary.reps.map((rep) => (
-                                    <div key={`latest-${rep.repNumber}`} className="rep-row">
+                                    <div
+                                        key={`latest-${rep.repNumber}`}
+                                        className={`rep-row rep-row--${rep.feedback || 'idle'}`}
+                                    >
                                         <span>Rep {rep.repNumber}</span>
                                         <span>{rep.peakAngle.toFixed(2)}°</span>
                                     </div>
@@ -725,7 +729,7 @@ export const Homepage = (props) => {
                         {feedbackList.map((feedback) => (
                             <div key={feedback.id} className="feedback-card">
                                 <div className="session-card__header">
-                                    <span className="workout-type">{feedback.doctorName || feedback.doctorEmail || 'Physiotherapist'}</span>
+                                    <span className="workout-type feedback-author">{feedback.doctorName || feedback.doctorEmail || 'Physiotherapist'}</span>
                                     <span className="date">{formatDateTime(feedback.createdAt)}</span>
                                 </div>
                                 {feedback.exerciseName ? (
@@ -770,7 +774,10 @@ export const Homepage = (props) => {
                                                 <p>Total reps: {session.repCount}</p>
                                                 <div className="rep-list">
                                                     {(session.reps || []).map((rep) => (
-                                                        <div key={`${session.id}-${rep.repNumber}`} className="rep-row">
+                                                        <div
+                                                            key={`${session.id}-${rep.repNumber}`}
+                                                            className={`rep-row rep-row--${rep.feedback || 'idle'}`}
+                                                        >
                                                             <span>Rep {rep.repNumber}</span>
                                                             <span>{Number(rep.peakAngle).toFixed(2)}°</span>
                                                         </div>

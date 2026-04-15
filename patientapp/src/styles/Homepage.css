@@ -266,6 +266,16 @@ body {
     border: 1px solid #dfeaf3;
 }
 
+.rep-row--success {
+    background: linear-gradient(145deg, #e7f7ef, #d6f0e2);
+    border-color: #8ec9a9;
+}
+
+.rep-row--warning {
+    background: linear-gradient(145deg, #fff0ef, #ffe2df);
+    border-color: #e59b95;
+}
+
 .session-history {
     width: 100%;
 }
@@ -343,6 +353,10 @@ body {
 
 .feedback-message {
     line-height: 1.6;
+}
+
+.feedback-author {
+    font-size: 16px;
 }
 
 .empty-state {
